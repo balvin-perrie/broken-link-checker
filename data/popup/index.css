@@ -1,11 +1,12 @@
 body {
-  font-family: "Helvetica Neue",Helvetica,sans-serif;
+  font-family: "Helvetica Neue", Helvetica, sans-serif;
   font-size: 13px;
-  margin: 10px;
-  width: calc(100% - 20px);
+  width: 100vw;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 20px);
+  height: 100vh;
+  margin: 0;
+  background-color: #fff;
 }
 
 table {
@@ -21,10 +22,11 @@ th {
   text-align: left;
   font-weight: normal;
   background-color: rgba(0, 0, 0, 0.1);
+  padding: 3px 15px;
 }
 th span {
   color: #fff;
-  padding: 0 5px;
+  padding: 0 15px;
   font-size: 80%;
   float: right;
   font-weight: 300;
@@ -35,8 +37,11 @@ th span {
 #broken-counter {
   background-color: rgb(138, 0, 0);
 }
-th, td {
+td {
   padding: 3px;
+}
+th,
+td {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -44,17 +49,26 @@ th, td {
 td:last-of-type {
   text-align: right;
 }
+button,
 input[type=button] {
   background-color: rgba(0, 0, 0, 0.1);
   border: none;
   font-size: 90%;
-  padding: 2px 5px;
-  min-width: 80px;
+  padding: 5px;
+  min-width: 70px;
   cursor: pointer;
   outline: none;
 }
+button:active,
 input[type=button]:active {
   opacity: 0.5;
+}
+button * {
+  pointer-events: none;
+}
+label {
+  display: flex;
+  align-items: center;
 }
 #brokens,
 #valids {
@@ -66,6 +80,29 @@ input[type=button]:active {
 #valids {
   flex: 1;
 }
-body[data-done=true] #progress {
-  display: none;
+#progress {
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+#progress > div {
+  height: 3px;
+  background-color: rgb(0, 138, 30);
+  width: 0%;
+}
+fieldset {
+  border: solid 1px rgba(0, 0, 0, 0.1);
+}
+legend {
+  font-size: 90%;
+  padding: 0 10px;
+}
+#buttons {
+  display: flex;
+  align-items: center;
+  flex-flow: wrap;
+  justify-content: flex-end;
+  margin: 5px;
+}
+#settings {
+  display: flex;
 }

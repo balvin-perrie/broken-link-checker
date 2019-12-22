@@ -1,6 +1,6 @@
 'use strict';
 
-var notify = message => chrome.notifications.create({
+const notify = message => chrome.notifications.create({
   iconUrl: 'data/icons/48.png',
   message,
   title: chrome.runtime.getManifest().name,
@@ -12,13 +12,21 @@ chrome.browserAction.onClicked.addListener(tab => chrome.storage.local.get({
 }, prefs => {
   if (prefs.mode === 'inline') {
     chrome.tabs.executeScript({
-      file: 'data/inject.js',
+      code: `
+        window.windowId = ${tab.windowId};
+        window.tabId = ${tab.id};
+        window.src = "${tab.url}";
+      `,
       runAt: 'document_start'
     }, () => {
       const lastError = chrome.runtime.lastError;
       if (lastError) {
-        notify(lastError.message);
+        return notify(lastError.message);
       }
+      chrome.tabs.executeScript({
+        file: 'data/inject.js',
+        runAt: 'document_start'
+      });
     });
   }
   else {
@@ -29,7 +37,10 @@ chrome.browserAction.onClicked.addListener(tab => chrome.storage.local.get({
       top: screen.availTop + Math.round((screen.availHeight - 500) / 2)
     }, prefs => {
       chrome.windows.create({
-        url: chrome.extension.getURL('data/popup/index.html?tabId=' + tab.id),
+        url: chrome.extension.getURL('data/popup/index.html') +
+          '?tabId=' + tab.id +
+          '&windowId=' + tab.windowId +
+          '&src=' + encodeURIComponent(tab.url),
         width: prefs.width,
         height: prefs.height,
         left: prefs.left,
@@ -47,45 +58,39 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
       runAt: 'document_start'
     });
   }
-  else if (request.method === 'self-id') {
-    response(sender.tab.id);
-  }
   else if (request.method === 'grab-links') {
-    const tabId = request.tabId || sender.tab.id;
-    chrome.tabs.executeScript(tabId, {
-      code: `var tabId = ${request.selfId};`,
+    chrome.tabs.executeScript(request.tabId, {
+      file: 'data/grab.js',
       runAt: 'document_start',
       allFrames: request.allFrames,
       matchAboutBlank: request.matchAboutBlank
-    }, () => {
+    }, arr => {
       const lastError = chrome.runtime.lastError;
       if (lastError) {
         return notify(lastError.message);
       }
-      chrome.tabs.executeScript(tabId, {
-        file: 'data/grab.js',
-        runAt: 'document_start',
-        allFrames: request.allFrames,
-        matchAboutBlank: request.matchAboutBlank
-      });
+      response(arr || []);
     });
-  }
-  else if (request.method === 'link-collector') {
-    const tabId = request.tabId || sender.tab.id;
-    request.method = 'link-collector-bounced';
-    chrome.tabs.sendMessage(tabId, request);
+    return true;
   }
   else if (request.method === 'fetch') {
     const r = new XMLHttpRequest();
     r.open('GET', request.link);
     r.timeout = 10000;
     r.onreadystatechange = () => {
-      if (r.readyState === r.HEADERS_RECEIVED) {
+      if (r.readyState === r.HEADERS_RECEIVED && request.body === false) {
         response({
           status: r.status,
           responseURL: r.responseURL
         });
         r.abort();
+      }
+      else if (r.readyState === r.DONE && request.body) {
+        response({
+          status: r.status,
+          responseURL: r.responseURL,
+          content: r.responseText
+        });
       }
     };
     r.ontimeout = () => response({
@@ -98,25 +103,36 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
     return true;
   }
   else if (request.method === 'inspect') {
-    const tabId = request.tabId || sender.tab.id;
+    const tabId = request.tabId;
     chrome.tabs.executeScript(tabId, {
       allFrames: true,
       code: `{
-        if (location.hostname === '${request.hostname}') {
-          const a = [...document.querySelectorAll('a')].filter(a => a.href === '${request.link}').shift();
-          if (a) {
-            a.scrollIntoView({
-              block: 'center',
-              inline: 'nearest'
-            });
-            a.style['box-shadow'] = '0 0 0 2px ${request.bg}';
-            a.style['background-color'] = '${request.bg}';
-            a.style['color'] = '${request.color}';
-          }
+        const a = [...document.querySelectorAll('a')].filter(a => a.href === '${request.link}').shift();
+        if (a) {
+          a.scrollIntoView({
+            block: 'center',
+            inline: 'nearest'
+          });
+          a.style['box-shadow'] = '0 0 0 2px ${request.bg}';
+          a.style['background-color'] = '${request.bg}';
+          a.style['color'] = '${request.color}';
+          true
+        }
+        else {
+          false
         }
       }`,
       matchAboutBlank: true,
       runAt: 'document_start'
+    }, arr => {
+      if (arr.some(a => a)) {
+        chrome.tabs.update(tabId, {
+          highlighted: true
+        });
+        chrome.windows.update(request.windowId, {
+          focused: true
+        });
+      }
     });
   }
 });
@@ -146,3 +162,30 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
 chrome.contextMenus.onClicked.addListener(info => chrome.storage.local.set({
   mode: info.menuItemId
 }));
+
+// FAQs and Feedback
+{
+  const {onInstalled, setUninstallURL, getManifest} = chrome.runtime;
+  const {name, version} = getManifest();
+  const page = getManifest().homepage_url;
+  onInstalled.addListener(({reason, previousVersion}) => {
+    chrome.storage.local.get({
+      'faqs': true,
+      'last-update': 0
+    }, prefs => {
+      if (reason === 'install' || (prefs.faqs && reason === 'update')) {
+        const doUpdate = (Date.now() - prefs['last-update']) / 1000 / 60 / 60 / 24 > 45;
+        if (doUpdate && previousVersion !== version) {
+          chrome.tabs.create({
+            url: page + '?version=' + version +
+              (previousVersion ? '&p=' + previousVersion : '') +
+              '&type=' + reason,
+            active: reason === 'install'
+          });
+          chrome.storage.local.set({'last-update': Date.now()});
+        }
+      }
+    });
+  });
+  setUninstallURL(page + '?rd=feedback&name=' + encodeURIComponent(name) + '&version=' + version);
+}

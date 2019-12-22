@@ -21,9 +21,9 @@ chrome.storage.local.get({
     z-index: 10000000000;
     box-shadow: 0 0 2px #ccc;
   `);
-  window.iframe.src = chrome.runtime.getURL('data/popup/index.html');
-  window.iframe.onload = () => {
-
-  };
+  window.iframe.src = chrome.runtime.getURL('data/popup/index.html') +
+    '?tabId=' + window.tabId +
+    '&windowId=' + window.windowId +
+    '&src=' + encodeURIComponent(window.src);
   document.body.appendChild(window.iframe);
 });
