@@ -37,6 +37,9 @@ th span {
 #broken-counter {
   background-color: rgb(138, 0, 0);
 }
+#skip-counter {
+  background-color: #9152ff;
+}
 td {
   padding: 3px;
 }
@@ -46,16 +49,21 @@ td {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+td:first-of-type span {
+  display: inline-block;
+  text-align: center;
+}
 td:last-of-type {
   text-align: right;
 }
+td:first-of-type span,
 button,
 input[type=button] {
   background-color: rgba(0, 0, 0, 0.1);
   border: none;
   font-size: 90%;
   padding: 5px;
-  min-width: 70px;
+  min-width: 30px;
   cursor: pointer;
   outline: none;
 }
@@ -71,13 +79,17 @@ label {
   align-items: center;
 }
 #brokens,
+#skips,
 #valids {
   overflow-y: scroll;
 }
 #brokens {
-  flex: 1;
+  flex: 2;
 }
 #valids {
+  flex: 2;
+}
+#skips {
   flex: 1;
 }
 #progress {

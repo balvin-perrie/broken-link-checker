@@ -42,20 +42,26 @@ const ui = {};
   const progress = document.querySelector('#progress > div');
   const valids = document.getElementById('valid-counter');
   const brokens = document.getElementById('broken-counter');
+  const skips = document.getElementById('skip-counter');
   ui.update = () => {
     valids.textContent = schedule.valids;
     brokens.textContent = schedule.brokens;
-    const len = schedule.brokens + schedule.valids;
+    skips.textContent = schedule.skips;
+    const len = schedule.brokens + schedule.valids + schedule.skips;
     const total = Object.keys(cache).length;
     stat.textContent = `${len}/${total}`;
     progress.style.width = len / total * 100 + '%';
+    if (len === total) {
+      document.title = '[Done]';
+    }
   };
 }
 {
   ui.append = {};
   const tr = document.getElementById('tr');
   const map = {
-    '0': 'No Access-Control-Allow-Origin',
+    '-1': 'Skipped',
+    '0': 'Empty Response or No Access-Control-Allow-Origin',
     '100': 'Continue',
     '101': 'Switching Protocol',
     '102': 'Processing',
@@ -125,10 +131,13 @@ const ui = {};
     schedule[kind + 's'] += 1;
     const clone = document.importNode(tr.content, true);
     const [status, msg, link, origin] = [...clone.querySelectorAll('td')];
-    if (result.status === 200 && result.responseURL !== result.link) {
+    if (
+      result.status === 200 &&
+      result.responseURL.split('#')[0] !== result.link.split('#')[0]
+    ) {
       result.status = '3XX';
     }
-    status.title = status.textContent = result.status;
+    status.title = status.querySelector('span').textContent = result.status;
     link.title = link.textContent = result.link +
       (!result.responseURL || result.responseURL === result.link ? '' : ' -> ' + result.responseURL);
     msg.title = msg.textContent = map[result.status] || 'unknown';
@@ -146,33 +155,40 @@ const ui = {};
   };
   ui.append.valid = result => ui.append.add(result, 'valid');
   ui.append.broken = result => ui.append.add(result, 'broken');
+  ui.append.skip = result => ui.append.add(result, 'skip');
 }
 
 const schedule = {
   links: [],
   busy: false,
   brokens: 0,
-  valids: 0
+  valids: 0,
+  skips: 0
 };
-schedule.fetch = ({link, origin, inspect}) => new Promise(resolve => chrome.runtime.sendMessage({
+schedule.fetch = object => new Promise(resolve => chrome.runtime.sendMessage({
   method: 'fetch',
-  link,
+  link: object.link,
   body: document.getElementById('deepSearch').checked &&
-    tld.getDomain(link) === domain &&
+    tld.getDomain(object.link) === domain &&
     document.body.dataset.done === 'false'
 }, r => {
   // parse content and append to the list
   if (r.content && document.body.dataset.done === 'false') {
     const parser = new DOMParser();
     const doc = parser.parseFromString(r.content, 'text/html');
-    append([...doc.querySelectorAll('a')].map(a => a.href).filter(s => s), link, false);
+    // change the base back
+    const base = doc.createElement('base');
+    base.setAttribute('href', object.link);
+    doc.head.append(base);
+    append([...doc.querySelectorAll('a')].filter(e => e.href).map(e => {
+      return {
+        link: e.href,
+        inspect: false
+      };
+    }), object.link, false);
   }
 
-  resolve(Object.assign({
-    link,
-    origin,
-    inspect
-  }, r));
+  resolve(Object.assign(object, r));
 }));
 schedule.step = () => {
   if (schedule.busy || schedule.links.length === 0) {
@@ -188,13 +204,21 @@ schedule.step = () => {
   ].filter(a => a).map(schedule.fetch)).then(results => {
     const v = document.getElementById('valids');
     const b = document.getElementById('brokens');
+    const s = document.getElementById('skips');
 
     for (const result of results) {
-      if ((result.status >= 200 && result.status < 400) || result.status === 0) {
+      if (result.status >= 200 && result.status < 400) {
         const doScroll = v.scrollHeight - v.scrollTop === v.clientHeight;
         ui.append.valid(result);
         if (doScroll) {
           v.scrollTop = v.scrollHeight;
+        }
+      }
+      else if (result.status === -1) {
+        ui.append.skip(result);
+        const doScroll = s.scrollHeight - s.scrollTop === s.clientHeight;
+        if (doScroll) {
+          s.scrollTop = s.scrollHeight;
         }
       }
       else {
@@ -215,32 +239,37 @@ schedule.step = () => {
     }
   });
 };
-schedule.append = (links, origin, inspect) => {
+schedule.append = (objects, origin) => {
   if (document.body.dataset.done === 'true') {
     return;
   }
   document.body.dataset.done = false;
-  links.forEach(link => {
-    schedule.links.push({
-      link,
-      origin,
-      inspect
-    });
-  });
+  schedule.links.push(...objects.map(o => ({
+    link: o.link,
+    inspect: o.inspect,
+    origin
+  })));
   schedule.step();
 };
 
-const append = (links, origin, inspect = true) => {
-  const newLinks = [];
-  for (let link of links) {
-    link = link.split('#')[0];
-    if (cache[link] === undefined && link.startsWith('http')) {
-      cache[link] = true;
-      newLinks.push(link);
+const append = (objects, origin) => {
+  const newObject = [];
+  for (const object of objects) {
+    const href = object.link.split('#')[0];
+    if (cache[href] === undefined && href.startsWith('http')) {
+      cache[href] = true;
+      newObject.push(object);
+    }
+    else {
+      if (cache[href] === undefined) {
+        object.status = -1;
+        ui.append.add(object, 'skip');
+        cache[href] = true;
+      }
     }
   }
   ui.update();
-  schedule.append(newLinks, origin, inspect);
+  schedule.append(newObject, origin);
 };
 
 const init = () => chrome.runtime.sendMessage({
