@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "version": "0.1.3",
+  "version": "0.1.4",
   "name": "Broken Link Checker",
   "description":"A SEO tool to find broken (404) and redirected (301, 307, 308) links in all frames",
   "permissions": [

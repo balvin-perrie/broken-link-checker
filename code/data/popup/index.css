@@ -1,3 +1,6 @@
+:root {
+  --bg-dark: #f1f1f1;
+}
 body {
   font-family: "Helvetica Neue", Helvetica, sans-serif;
   font-size: 13px;
@@ -21,7 +24,7 @@ thead {
 th {
   text-align: left;
   font-weight: normal;
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: var(--bg-dark);
   padding: 3px 15px;
 }
 th span {
@@ -58,11 +61,12 @@ td:last-of-type {
 }
 td:first-of-type span,
 button,
+input[type=text],
 input[type=button] {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: var(--bg-dark);
   border: none;
   font-size: 90%;
-  padding: 5px;
+  padding: 8px;
   min-width: 30px;
   cursor: pointer;
   outline: none;
@@ -94,7 +98,7 @@ label {
 }
 #progress {
   width: 100%;
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: var(--bg-dark);
 }
 #progress > div {
   height: 3px;
@@ -102,7 +106,7 @@ label {
   width: 0%;
 }
 fieldset {
-  border: solid 1px rgba(0, 0, 0, 0.1);
+  border: solid 1px var(--bg-dark);
 }
 legend {
   font-size: 90%;
@@ -117,4 +121,9 @@ legend {
 }
 #settings {
   display: flex;
+  white-space: nowrap;
+  flex-flow: wrap;
+}
+#settings input[type=text] {
+  flex: 1;
 }

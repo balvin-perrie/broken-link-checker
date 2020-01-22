@@ -29,8 +29,12 @@ document.addEventListener('click', e => {
     location.reload();
   }
   else if (cmd === 'abort') {
+    document.querySelector('[data-cmd=abort]').disabled = true;
     schedule.links = [];
     document.body.dataset.done = true;
+  }
+  else if (cmd === 'start') {
+    init();
   }
 });
 
@@ -151,7 +155,13 @@ const ui = {};
     if (result.inspect === false) {
       clone.querySelector('[data-cmd="inspect"]').disabled = true;
     }
-    document.querySelector(`#${kind}s tbody`).appendChild(clone);
+    // scroll
+    const parent = document.querySelector(`#${kind}s`);
+    const doScroll = parent.scrollHeight - parent.scrollTop === parent.clientHeight;
+    parent.querySelector('tbody').appendChild(clone);
+    if (doScroll) {
+      parent.scrollTop = parent.scrollHeight;
+    }
   };
   ui.append.valid = result => ui.append.add(result, 'valid');
   ui.append.broken = result => ui.append.add(result, 'broken');
@@ -202,31 +212,15 @@ schedule.step = () => {
     schedule.links.shift(),
     schedule.links.shift()
   ].filter(a => a).map(schedule.fetch)).then(results => {
-    const v = document.getElementById('valids');
-    const b = document.getElementById('brokens');
-    const s = document.getElementById('skips');
-
     for (const result of results) {
       if (result.status >= 200 && result.status < 400) {
-        const doScroll = v.scrollHeight - v.scrollTop === v.clientHeight;
         ui.append.valid(result);
-        if (doScroll) {
-          v.scrollTop = v.scrollHeight;
-        }
       }
       else if (result.status === -1) {
         ui.append.skip(result);
-        const doScroll = s.scrollHeight - s.scrollTop === s.clientHeight;
-        if (doScroll) {
-          s.scrollTop = s.scrollHeight;
-        }
       }
       else {
         ui.append.broken(result);
-        const doScroll = b.scrollHeight - b.scrollTop === b.clientHeight;
-        if (doScroll) {
-          b.scrollTop = b.scrollHeight;
-        }
       }
     }
     ui.update();
@@ -236,6 +230,7 @@ schedule.step = () => {
     }
     else {
       document.body.dataset.done = true;
+      document.querySelector('[data-cmd=abort]').disabled = true;
     }
   });
 };
@@ -254,18 +249,28 @@ schedule.append = (objects, origin) => {
 
 const append = (objects, origin) => {
   const newObject = [];
+  const filters = document.getElementById('filter').value.split(/\s*,\s*/)
+    .filter((s, i, l) => s && l.indexOf(s) === i);
   for (const object of objects) {
-    const href = object.link.split('#')[0];
-    if (cache[href] === undefined && href.startsWith('http')) {
-      cache[href] = true;
-      newObject.push(object);
-    }
-    else {
+    const skip = () => {
       if (cache[href] === undefined) {
         object.status = -1;
         ui.append.add(object, 'skip');
         cache[href] = true;
       }
+    };
+    const href = object.link.split('#')[0];
+    if (cache[href] === undefined && href.startsWith('http')) {
+      if (filters.length && filters.some(f => href.indexOf(f) !== -1)) {
+        skip();
+      }
+      else {
+        cache[href] = true;
+        newObject.push(object);
+      }
+    }
+    else {
+      skip();
     }
   }
   ui.update();
@@ -278,27 +283,35 @@ const init = () => chrome.runtime.sendMessage({
   matchAboutBlank: document.getElementById('matchAboutBlank').checked,
   tabId: Number(args.get('tabId'))
 }, resp => {
+  document.querySelector('[data-cmd=start]').disabled = true;
+  document.querySelector('[data-cmd=abort]').disabled = false;
   for (const o of resp) {
     append(o.links, o.origin, true);
   }
 });
 
 /* persist */
-document.addEventListener('change', e => {
-  if (e.target.id) {
+document.addEventListener('change', ({target}) => {
+  if (target.id) {
     chrome.storage.local.set({
-      ['settings.' + e.target.id]: e.target.checked
+      ['settings.' + target.id]: target.type === 'text' ? target.value : target.checked
     });
   }
 });
 chrome.storage.local.get({
+  'settings.autoStart': true,
   'settings.deepSearch': false,
   'settings.allFrames': true,
-  'settings.matchAboutBlank': true
+  'settings.matchAboutBlank': true,
+  'settings.filter': ''
 }, prefs => {
+  document.getElementById('autoStart').checked = prefs['settings.autoStart'];
   document.getElementById('deepSearch').checked = prefs['settings.deepSearch'];
   document.getElementById('allFrames').checked = prefs['settings.allFrames'];
   document.getElementById('matchAboutBlank').checked = prefs['settings.matchAboutBlank'];
+  document.getElementById('filter').value = prefs['settings.filter'];
 
-  init();
+  if (prefs['settings.autoStart']) {
+    init();
+  }
 });
