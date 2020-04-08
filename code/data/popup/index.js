@@ -144,7 +144,7 @@ const ui = {};
     status.title = status.querySelector('span').textContent = result.status;
     link.title = link.textContent = result.link +
       (!result.responseURL || result.responseURL === result.link ? '' : ' -> ' + result.responseURL);
-    msg.title = msg.textContent = map[result.status] || 'unknown';
+    msg.title = msg.textContent = result.reason || map[result.status] || 'unknown';
     origin.title = origin.textContent = result.origin;
     Object.assign(clone.querySelector('tr').dataset, {
       link: result.link,
@@ -252,25 +252,35 @@ const append = (objects, origin) => {
   const filters = document.getElementById('filter').value.split(/\s*,\s*/)
     .filter((s, i, l) => s && l.indexOf(s) === i);
   for (const object of objects) {
-    const skip = () => {
+    const href = object.link.split('#')[0];
+    const skip = reason => {
+      console.log(reason, object.link);
+      object.status = -1;
+      object.reason = reason;
       if (cache[href] === undefined) {
-        object.status = -1;
+        cache[href] = [object.link];
         ui.append.add(object, 'skip');
-        cache[href] = true;
+      }
+      else if (cache[href].indexOf(object.link) === -1) {
+        console.log(href, ...cache[href], object.link);
+        cache[href].push(object.link);
+        ui.append.add(object, 'skip');
       }
     };
-    const href = object.link.split('#')[0];
     if (cache[href] === undefined && href.startsWith('http')) {
       if (filters.length && filters.some(f => href.indexOf(f) !== -1)) {
-        skip();
+        skip('Filtered');
       }
       else {
-        cache[href] = true;
+        cache[href] = [object.link];
         newObject.push(object);
       }
     }
+    else if (href.startsWith('http') === false) {
+      skip('Unknown Scheme');
+    }
     else {
-      skip();
+      skip('Duplicated');
     }
   }
   ui.update();
