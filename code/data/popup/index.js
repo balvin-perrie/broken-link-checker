@@ -52,7 +52,7 @@ const ui = {};
     brokens.textContent = schedule.brokens;
     skips.textContent = schedule.skips;
     const len = schedule.brokens + schedule.valids + schedule.skips;
-    const total = Object.keys(cache).length;
+    const total = Object.values(cache).reduce((p, c) => p + c.length, 0);
     stat.textContent = `${len}/${total}`;
     progress.style.width = len / total * 100 + '%';
     if (len === total) {
@@ -262,12 +262,12 @@ const append = (objects, origin) => {
         ui.append.add(object, 'skip');
       }
       else if (cache[href].indexOf(object.link) === -1) {
-        console.log(href, ...cache[href], object.link);
         cache[href].push(object.link);
         ui.append.add(object, 'skip');
       }
     };
-    if (cache[href] === undefined && href.startsWith('http')) {
+    const knownScheme = ['http', 'file'].some(s => href.startsWith(s));
+    if (cache[href] === undefined && knownScheme) {
       if (filters.length && filters.some(f => href.indexOf(f) !== -1)) {
         skip('Filtered');
       }
@@ -276,7 +276,7 @@ const append = (objects, origin) => {
         newObject.push(object);
       }
     }
-    else if (href.startsWith('http') === false) {
+    else if (knownScheme=== false) {
       skip('Unknown Scheme');
     }
     else {

@@ -78,19 +78,35 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
     r.open('GET', request.link);
     r.timeout = 10000;
     r.onreadystatechange = () => {
-      if (r.readyState === r.HEADERS_RECEIVED && request.body === false) {
-        response({
-          status: r.status,
-          responseURL: r.responseURL
-        });
-        r.abort();
+      // http scheme
+      if (request.link.startsWith('http')) {
+        if (r.readyState === r.HEADERS_RECEIVED && request.body === false) {
+          response({
+            status: r.status,
+            responseURL: r.responseURL
+          });
+          r.abort();
+        }
+        else if (r.readyState === r.DONE && request.body) {
+          response({
+            status: r.status,
+            responseURL: r.responseURL,
+            content: r.responseText
+          });
+        }
       }
-      else if (r.readyState === r.DONE && request.body) {
-        response({
-          status: r.status,
-          responseURL: r.responseURL,
-          content: r.responseText
-        });
+      // file scheme
+      else {
+        if (r.readyState === r.DONE) {
+          const o = {
+            status: r.responseText ? 200 : r.status,
+            responseURL: r.responseURL
+          };
+          if (request.body) {
+            o.content = r.responseText;
+          }
+          response(o);
+        }
       }
     };
     r.ontimeout = () => response({
