@@ -335,7 +335,7 @@ document.addEventListener('change', ({target}) => {
 chrome.storage.local.get({
   'settings.autoStart': true,
   'settings.deepSearch': false,
-  'settings.extractRootLinks': false,
+  'settings.extractRootLinks': true,
   'settings.extractTreeLinks': false,
   'settings.allFrames': true,
   'settings.matchAboutBlank': true,
