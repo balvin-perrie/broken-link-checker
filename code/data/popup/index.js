@@ -58,6 +58,9 @@ const ui = {};
     if (len === total) {
       document.title = '[Done]';
     }
+    else {
+      document.title = '[Still Working]';
+    }
   };
 }
 {
@@ -175,10 +178,10 @@ const schedule = {
   valids: 0,
   skips: 0
 };
-schedule.fetch = object => new Promise(resolve => chrome.runtime.sendMessage({
+schedule.fetch = (object, extract = false) => new Promise(resolve => chrome.runtime.sendMessage({
   method: 'fetch',
   link: object.link,
-  body: document.getElementById('deepSearch').checked &&
+  body: (document.getElementById('deepSearch').checked || document.getElementById('extractTreeLinks').checked || extract) &&
     tld.getDomain(object.link) === domain &&
     document.body.dataset.done === 'false'
 }, r => {
@@ -197,10 +200,25 @@ schedule.fetch = object => new Promise(resolve => chrome.runtime.sendMessage({
       };
     }), object.link, false);
   }
+  if (
+    r.content &&
+    document.body.dataset.done === 'false' &&
+    (document.getElementById('extractTreeLinks').checked || extract)
+  ) {
+    const reg = /(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-A-Z0-9+&@#/%=~_|$?!:,.]*\)|[-A-Z0-9+&@#/%=~_|$?!:,.])*(?:\([-A-Z0-9+&@#/%=~_|$?!:,.]*\)|[A-Z0-9+&@#/%=~_|$])/igm;
+    const links = r.content.match(reg) || [];
+    append(links.filter(e => e).map(link => {
+      return {
+        link,
+        inspect: false
+      };
+    }), object.link, false);
+  }
 
   resolve(Object.assign(object, r));
 }));
 schedule.step = () => {
+  console.log(schedule.busy, schedule.links.length === 0);
   if (schedule.busy || schedule.links.length === 0) {
     return;
   }
@@ -211,7 +229,7 @@ schedule.step = () => {
     schedule.links.shift(),
     schedule.links.shift(),
     schedule.links.shift()
-  ].filter(a => a).map(schedule.fetch)).then(results => {
+  ].filter(a => a).map(h => schedule.fetch(h))).then(results => {
     for (const result of results) {
       if (result.status >= 200 && result.status < 400) {
         ui.append.valid(result);
@@ -235,7 +253,7 @@ schedule.step = () => {
   });
 };
 schedule.append = (objects, origin) => {
-  if (document.body.dataset.done === 'true') {
+  if (document.body.dataset.done === 'true' || objects.length === 0) {
     return;
   }
   document.body.dataset.done = false;
@@ -254,7 +272,6 @@ const append = (objects, origin) => {
   for (const object of objects) {
     const href = object.link.split('#')[0];
     const skip = reason => {
-      console.log(reason, object.link);
       object.status = -1;
       object.reason = reason;
       if (cache[href] === undefined) {
@@ -276,7 +293,7 @@ const append = (objects, origin) => {
         newObject.push(object);
       }
     }
-    else if (knownScheme=== false) {
+    else if (knownScheme === false) {
       skip('Unknown Scheme');
     }
     else {
@@ -298,6 +315,13 @@ const init = () => chrome.runtime.sendMessage({
   for (const o of resp) {
     append(o.links, o.origin, true);
   }
+  if (document.getElementById('extractRootLinks').checked) {
+    for (const o of resp) {
+      schedule.fetch({
+        link: o.origin
+      }, true);
+    }
+  }
 });
 
 /* persist */
@@ -311,12 +335,16 @@ document.addEventListener('change', ({target}) => {
 chrome.storage.local.get({
   'settings.autoStart': true,
   'settings.deepSearch': false,
+  'settings.extractRootLinks': false,
+  'settings.extractTreeLinks': false,
   'settings.allFrames': true,
   'settings.matchAboutBlank': true,
   'settings.filter': ''
 }, prefs => {
   document.getElementById('autoStart').checked = prefs['settings.autoStart'];
   document.getElementById('deepSearch').checked = prefs['settings.deepSearch'];
+  document.getElementById('extractRootLinks').checked = prefs['settings.extractRootLinks'];
+  document.getElementById('extractTreeLinks').checked = prefs['settings.extractTreeLinks'];
   document.getElementById('allFrames').checked = prefs['settings.allFrames'];
   document.getElementById('matchAboutBlank').checked = prefs['settings.matchAboutBlank'];
   document.getElementById('filter').value = prefs['settings.filter'];
