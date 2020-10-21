@@ -21,6 +21,22 @@ thead {
   border-top: solid 5px transparent;
   border-bottom: solid 5px transparent;
 }
+body[data-2xx=false] tr[data-code="2"] {
+  display: none;
+}
+body[data-3xx=false] tr[data-code="3"] {
+  display: none;
+}
+body[data-4xx=false] tr[data-code="4"] {
+  display: none;
+}
+body[data-5xx=false] tr[data-code="5"] {
+  display: none;
+}
+body[data-nxx=false] tr[data-code]:not([data-code="2"]):not([data-code="3"]):not([data-code="4"]):not([data-code="5"]) {
+  display: none;
+}
+
 th {
   text-align: left;
   font-weight: normal;
@@ -77,9 +93,15 @@ input[type=button]:active {
 button * {
   pointer-events: none;
 }
-label {
+#filters label {
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+}
+#settings label {
   display: flex;
   align-items: center;
+  user-select: none;
 }
 #brokens,
 #skips,

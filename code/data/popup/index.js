@@ -153,7 +153,8 @@ const ui = {};
       link: result.link,
       origin: result.origin,
       bg: kind === 'valid' ? 'green' : 'red',
-      color: 'white'
+      color: 'white',
+      code: result.status.toString()[0]
     });
     if (result.inspect === false) {
       clone.querySelector('[data-cmd="inspect"]').disabled = true;
@@ -186,7 +187,7 @@ schedule.fetch = (object, extract = false) => new Promise(resolve => chrome.runt
     document.body.dataset.done === 'false'
 }, r => {
   // parse content and append to the list
-  if (r.content && document.body.dataset.done === 'false') {
+  if (r.content && document.body.dataset.done === 'false' && document.getElementById('deepSearch').checked) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(r.content, 'text/html');
     // change the base back
@@ -309,7 +310,7 @@ const init = () => chrome.runtime.sendMessage({
   allFrames: document.getElementById('allFrames').checked,
   matchAboutBlank: document.getElementById('matchAboutBlank').checked,
   tabId: Number(args.get('tabId'))
-}, resp => {
+}, (resp = []) => {
   document.querySelector('[data-cmd=start]').disabled = true;
   document.querySelector('[data-cmd=abort]').disabled = false;
   for (const o of resp) {
@@ -324,11 +325,16 @@ const init = () => chrome.runtime.sendMessage({
   }
 });
 
+document.getElementById('filters').addEventListener('change', e => {
+  document.body.dataset[e.target.id.toLowerCase()] = e.target.checked;
+});
+
 /* persist */
 document.addEventListener('change', ({target}) => {
   if (target.id) {
+    const prefix = target.parentElement.closest('[id]').id;
     chrome.storage.local.set({
-      ['settings.' + target.id]: target.type === 'text' ? target.value : target.checked
+      [prefix + '.' + target.id]: target.type === 'text' ? target.value : target.checked
     });
   }
 });
@@ -339,7 +345,11 @@ chrome.storage.local.get({
   'settings.extractTreeLinks': false,
   'settings.allFrames': true,
   'settings.matchAboutBlank': true,
-  'settings.filter': ''
+  'settings.filter': '',
+  'filters.2xx': true,
+  'filters.3xx': true,
+  'filters.4xx': true,
+  'filters.nxx': true
 }, prefs => {
   document.getElementById('autoStart').checked = prefs['settings.autoStart'];
   document.getElementById('deepSearch').checked = prefs['settings.deepSearch'];
@@ -348,6 +358,15 @@ chrome.storage.local.get({
   document.getElementById('allFrames').checked = prefs['settings.allFrames'];
   document.getElementById('matchAboutBlank').checked = prefs['settings.matchAboutBlank'];
   document.getElementById('filter').value = prefs['settings.filter'];
+
+  document.getElementById('2xx').checked = prefs['filters.2xx'];
+  document.body.dataset['2xx'] = prefs['filters.2xx'];
+  document.getElementById('3xx').checked = prefs['filters.3xx'];
+  document.body.dataset['3xx'] = prefs['filters.3xx'];
+  document.getElementById('4xx').checked = prefs['filters.4xx'];
+  document.body.dataset['4xx'] = prefs['filters.4xx'];
+  document.getElementById('nxx').checked = prefs['filters.nxx'];
+  document.body.dataset['nxx'] = prefs['filters.nxx'];
 
   if (prefs['settings.autoStart']) {
     init();
