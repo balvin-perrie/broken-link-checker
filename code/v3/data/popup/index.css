@@ -36,7 +36,6 @@ body[data-5xx=false] tr[data-code="5"] {
 body[data-nxx=false] tr[data-code]:not([data-code="2"]):not([data-code="3"]):not([data-code="4"]):not([data-code="5"]) {
   display: none;
 }
-
 th {
   text-align: left;
   font-weight: normal;
@@ -74,29 +73,52 @@ td:first-of-type span {
 td:last-of-type {
   text-align: right;
 }
-td:first-of-type span,
-button,
-input[type=text],
-input[type=button] {
-  background-color: var(--bg-dark);
-  border: none;
-  font-size: 90%;
-  padding: 8px;
-  min-width: 30px;
-  cursor: pointer;
-  outline: none;
+td:first-of-type span {
+  width: 6ch;
+  font-size: 80%;
 }
-button:active,
-input[type=button]:active {
+#brokens td:first-of-type span {
+  background-color: #ffc9c9;
+}
+#valids td:first-of-type span {
+  background-color: #cdffd8;
+}
+#skips td:first-of-type span {
+  background-color: #e0ceff;
+}
+
+select,
+button,
+input[type=submit],
+input[type=button] {
+  height: 28px;
+  color: #444;
+  background-image: linear-gradient(rgb(237, 237, 237), rgb(237, 237, 237) 38%, rgb(222, 222, 222));
+  box-shadow: rgba(0, 0, 0, 0.08) 0 1px 0, rgba(255, 255, 255, 0.75) 0 1px 2px inset;
+  text-shadow: rgb(240, 240, 240) 0 1px 0;
+}
+select,
+button,
+textarea,
+input {
+  border: solid 1px rgba(0, 0, 0, 0.25);
+}
+input[type=button] {
+  min-width: 10ch;
+}
+input[type=button]:disabled {
   opacity: 0.5;
+}
+select {
+  min-width: 6ch;
 }
 button * {
   pointer-events: none;
 }
-#filters label {
-  display: inline-flex;
+#filters {
+  display: flex;
+  gap: 5px;
   align-items: center;
-  user-select: none;
 }
 #settings label {
   display: flex;
@@ -140,11 +162,24 @@ legend {
   justify-content: flex-end;
   margin: 5px;
 }
+
 #settings {
   display: flex;
+  flex-direction: column;
+  gap: 5px;
   white-space: nowrap;
-  flex-flow: wrap;
+}
+#settings div[data-id="start"] {
+  display: grid;
+  grid-template-columns: min-content 1fr repeat(4, min-content);
+  grid-gap: 5px;
+}
+#settings div[data-id="schedule"] {
+  display: flex;
+  gap: 5px;
+  align-items: center;
 }
 #settings input[type=text] {
   flex: 1;
+  padding: 5px;
 }

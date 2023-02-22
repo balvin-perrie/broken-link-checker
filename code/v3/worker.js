@@ -37,11 +37,12 @@ chrome.action.onClicked.addListener(tab => chrome.storage.local.get({
   else {
     const win = await chrome.windows.getCurrent();
     chrome.storage.local.get({
-      width: 700,
-      height: 600,
-      left: win.left + Math.round((win.width - 700) / 2),
-      top: win.top + Math.round((win.height - 600) / 2)
+      width: 800,
+      height: 600
     }, prefs => {
+      const left = win.left + Math.round((win.width - prefs.width) / 2);
+      const top = win.top + Math.round((win.height - prefs.height) / 2);
+
       chrome.windows.create({
         url: '/data/popup/index.html' +
           '?tabId=' + tab.id +
@@ -49,8 +50,8 @@ chrome.action.onClicked.addListener(tab => chrome.storage.local.get({
           '&src=' + encodeURIComponent(tab.url),
         width: prefs.width,
         height: prefs.height,
-        left: prefs.left,
-        top: prefs.top,
+        left: left,
+        top: top,
         type: 'popup'
       });
     });

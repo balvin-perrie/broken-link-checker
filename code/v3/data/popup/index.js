@@ -237,7 +237,8 @@ schedule.fetch = (object, extract = false) => new Promise(resolve => get({
     const doc = parser.parseFromString(r.content, 'text/html');
     // change the base back
     const base = doc.createElement('base');
-    base.setAttribute('href', object.link);
+    base.setAttribute('href', r.responseURL || object.link);
+
     doc.head.append(base);
     append([...doc.querySelectorAll('a')].filter(e => e.href).map(e => {
       return {
@@ -264,18 +265,18 @@ schedule.fetch = (object, extract = false) => new Promise(resolve => get({
   resolve(Object.assign(object, r));
 }));
 schedule.step = () => {
-  console.log(schedule.busy, schedule.links.length === 0);
   if (schedule.busy || schedule.links.length === 0) {
     return;
   }
+  console.log(schedule.busy, schedule.links.length === 0);
   schedule.busy = true;
-  Promise.all([
-    schedule.links.shift(),
-    schedule.links.shift(),
-    schedule.links.shift(),
-    schedule.links.shift(),
-    schedule.links.shift()
-  ].filter(a => a).map(h => schedule.fetch(h))).then(results => {
+
+  const n = Number(document.getElementById('number-of-simultaneous-jobs').value);
+  const delay = Number(document.getElementById('delay-after-jobs').value);
+
+  Promise.all([...new Array(n)].map(() => {
+    return schedule.links.shift();
+  }).filter(a => a).map(h => schedule.fetch(h))).then(results => {
     for (const result of results) {
       if (result.status >= 200 && result.status < 400) {
         ui.append.valid(result);
@@ -288,11 +289,14 @@ schedule.step = () => {
       }
     }
     ui.update();
-    schedule.busy = false;
     if (schedule.links.length) {
-      schedule.step();
+      setTimeout(() => {
+        schedule.busy = false;
+        schedule.step();
+      }, delay * 1000);
     }
     else {
+      schedule.busy = false;
       document.body.dataset.done = true;
       document.querySelector('[data-cmd=abort]').disabled = true;
     }
@@ -378,8 +382,20 @@ document.getElementById('filters').addEventListener('change', e => {
 document.addEventListener('change', ({target}) => {
   if (target.id) {
     const prefix = target.parentElement.closest('[id]').id;
+    console.log(prefix, target.id);
+
+    let value = target.value;
+    if (target.type === 'select-one') {
+      value = Number(target.value);
+    }
+    else if (target.type === 'checkbox') {
+      value = target.checked;
+    }
+
+    console.log([prefix + '.' + target.id], value);
+
     chrome.storage.local.set({
-      [prefix + '.' + target.id]: target.type === 'text' ? target.value : target.checked
+      [prefix + '.' + target.id]: value
     });
   }
 });
@@ -394,8 +410,12 @@ chrome.storage.local.get({
   'filters.2xx': true,
   'filters.3xx': true,
   'filters.4xx': true,
-  'filters.nxx': true
+  'filters.nxx': true,
+  'settings.number-of-simultaneous-jobs': 5,
+  'settings.delay-after-jobs': 5 // seconds
 }, prefs => {
+  console.log(prefs);
+
   document.getElementById('autoStart').checked = prefs['settings.autoStart'];
   document.getElementById('deepSearch').checked = prefs['settings.deepSearch'];
   document.getElementById('extractRootLinks').checked = prefs['settings.extractRootLinks'];
@@ -412,6 +432,9 @@ chrome.storage.local.get({
   document.body.dataset['4xx'] = prefs['filters.4xx'];
   document.getElementById('nxx').checked = prefs['filters.nxx'];
   document.body.dataset['nxx'] = prefs['filters.nxx'];
+
+  document.getElementById('number-of-simultaneous-jobs').value = prefs['settings.number-of-simultaneous-jobs'];
+  document.getElementById('delay-after-jobs').value = prefs['settings.delay-after-jobs'];
 
   if (prefs['settings.autoStart']) {
     init();

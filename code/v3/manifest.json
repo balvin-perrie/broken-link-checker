@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "name": "Broken Link Checker",
   "description":"A SEO tool to find broken (404) and redirected (301, 307, 308) links in all frames",
   "permissions": [
@@ -26,9 +26,14 @@
   "background": {
     "service_worker": "worker.js"
   },
-  "homepage_url": "https://add0n.com/broken-link-checker.html",
+  "homepage_url": "https://webextension.org/listing/broken-link-checker.html",
   "web_accessible_resources": [{
     "resources": ["data/popup/index.html"],
     "matches": ["*://*/*"]
-  }]
+  }],
+  "commands": {
+    "_execute_action": {
+      "description": "Press the action button"
+    }
+  }
 }
